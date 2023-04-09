@@ -1,9 +1,9 @@
 import {
     IsEmail,
-    IsNotEmpty,
+    IsNotEmpty, IsNumberString,
     IsString,
     Length,
-    Matches,
+    Matches
 } from "class-validator";
 
 export class CreateUserDto {
@@ -23,6 +23,6 @@ export class CreateUserDto {
     readonly phone: string;
 
     @IsNotEmpty()
-    @IsString()
+    @IsNumberString()
     readonly position_id: string;
 }

@@ -9,7 +9,7 @@ export class UsersController {
 
   @Post()
   @UseInterceptors(FileInterceptor('photo'))
-  create(@Body() createUserDto: CreateUserDto, @UploadedFile() file: Express.Multer.File) {
+  create( @Body() createUserDto: CreateUserDto, @UploadedFile() file: Express.Multer.File) {
     return this.usersService.create(createUserDto);
   }
 
