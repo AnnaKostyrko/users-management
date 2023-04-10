@@ -23,4 +23,7 @@ export class User {
         default: () => 'CURRENT_TIMESTAMP(6)',
     })
     public registration_timestamp: Date;
+
+    @Column({nullable: true})
+    photo: string;
 }

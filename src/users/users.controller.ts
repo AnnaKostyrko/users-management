@@ -10,8 +10,17 @@ export class UsersController {
 
     @Post()
     @UseInterceptors(FileInterceptor('photo'))
-    create(@Body() createUserDto: CreateUserDto, @UploadedFile() file: Express.Multer.File) {
-        return this.usersService.create(createUserDto);
+    async create(@Body() createUserDto: CreateUserDto, @UploadedFile() file: Express.Multer.File) {
+
+        const user = await this.usersService.create(createUserDto);
+        await this.usersService.processImage(user.id, file);
+
+
+        return {
+            "success": true,
+            "user_id": user.id,
+            "message": "New user successfully registered"
+        };
     }
 
     @Get()

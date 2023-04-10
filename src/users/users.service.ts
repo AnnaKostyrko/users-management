@@ -4,6 +4,10 @@ import {InjectRepository} from "@nestjs/typeorm";
 import {User} from "./entities/user.entity";
 import {Repository} from "typeorm";
 import {Position} from "./entities/position.entity";
+import * as sharp from "sharp";
+import tinify from "tinify";
+
+tinify.key = "";
 
 @Injectable()
 export class UsersService {
@@ -57,6 +61,7 @@ export class UsersService {
                 position_id: user.position.id.toString(),
                 position: user.position.name,
                 registration_timestamp: user.registration_timestamp.getTime(),
+                photo: '/uploads/' + user.id + '.jpg'
             };
 
             return responseItem;
@@ -82,5 +87,23 @@ export class UsersService {
                 position: true,
             }
         });
+    }
+
+    async processImage(userId: number, file: Express.Multer.File) {
+        const imagePath = `./uploads/${userId}.jpg`;
+
+        const metadata = await sharp(file.buffer).metadata()
+        const imageBuffer = await sharp(file.buffer)
+            .extract({
+                width: 70,
+                height: 70,
+                left: Math.floor(metadata.width / 2 - 35),
+                top: Math.floor(metadata.height / 2 - 35)
+            })
+            .jpeg({mozjpeg: true})
+            .toBuffer()
+
+        const source = tinify.fromBuffer(imageBuffer);
+        await source.toFile(imagePath);
     }
 }
