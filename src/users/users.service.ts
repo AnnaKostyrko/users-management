@@ -1,5 +1,5 @@
 import {HttpException, HttpStatus, Injectable} from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import {CreateUserDto} from './dto/create-user.dto';
 import {InjectRepository} from "@nestjs/typeorm";
 import {User} from "./entities/user.entity";
 import {Repository} from "typeorm";
@@ -7,59 +7,80 @@ import {Position} from "./entities/position.entity";
 
 @Injectable()
 export class UsersService {
-  constructor(
-      @InjectRepository(User)
-      private usersRepository: Repository<User>,
-      @InjectRepository(Position)
-      private positionsRepository: Repository<Position>,
-  ) {}
-
-  async create(createUserDto: CreateUserDto): Promise<User> {
-
-    const position = await this.positionsRepository.findOneBy({
-      id: +createUserDto.position_id,
-    });
-    if (!position) {
-      throw new HttpException('Position not found', HttpStatus.BAD_REQUEST);
+    constructor(
+        @InjectRepository(User)
+        private usersRepository: Repository<User>,
+        @InjectRepository(Position)
+        private positionsRepository: Repository<Position>,
+    ) {
     }
 
-    return this.usersRepository.save({
-      name: createUserDto.name,
-      email: createUserDto.email,
-      phone: createUserDto.phone,
-      position
-    });
-  }
+    async create(createUserDto: CreateUserDto): Promise<User> {
 
-  async findAll() {
+        const position = await this.positionsRepository.findOneBy({
+            id: +createUserDto.position_id,
+        });
+        if (!position) {
+            throw new HttpException('Position not found', HttpStatus.BAD_REQUEST);
+        }
 
-    const users = await this.usersRepository.find({
-      order: { registration_timestamp: 'desc' },
-      relations: {
-        position: true,
-      },
-    });
+        return this.usersRepository.save({
+            name: createUserDto.name,
+            email: createUserDto.email,
+            phone: createUserDto.phone,
+            position
+        });
+    }
 
-    const formattedUsersItems = users.map((user: User) => {
-      const responseItem = {
-        id: user.id.toString(),
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        position_id: user.position.id.toString(),
-        position: user.position.name,
-        registration_timestamp: user.registration_timestamp.getTime(),
-      };
+    async findAll(
+        page: number, count: number, offset: number
+    ) {
+        const skip = offset ? offset : (page - 1) * count;
 
-      return responseItem;
-    });
+        const users = await this.usersRepository.find({
+            order: {registration_timestamp: 'desc'},
+            relations: {
+                position: true,
+            },
+            skip: skip,
+            take: count
+        });
 
-    return {
-      users: formattedUsersItems,
-    };
-  }
+        const totalUserCount = await this.usersRepository.count();
 
-  findOne(id: number) {
-    return this.usersRepository.findOneBy({ id });
-  }
+        const formattedUsersItems = users.map((user: User) => {
+            const responseItem = {
+                id: user.id.toString(),
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                position_id: user.position.id.toString(),
+                position: user.position.name,
+                registration_timestamp: user.registration_timestamp.getTime(),
+            };
+
+            return responseItem;
+        });
+
+        return {
+            "success": true,
+            "page": offset ? 1 : page,
+            "total_pages": Math.floor(totalUserCount / count),
+            "total_users": totalUserCount,
+            "count": formattedUsersItems.length,
+            "links": {
+                "next_url": `http://localhost:3000/users?page=${page + 1}&count=${count}`,
+                "prev_url": null
+            },
+            users: formattedUsersItems,
+        };
+    }
+
+    async findOne(id: number): Promise<User> {
+        return this.usersRepository.findOne({
+            where: {id}, relations: {
+                position: true,
+            }
+        });
+    }
 }
