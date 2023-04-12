@@ -1,16 +1,41 @@
-import {Controller, Get, Post, Body, Param, Req, UseInterceptors, UploadedFile, Query} from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    Post,
+    Body,
+    Headers,
+    Param,
+    Req,
+    UseInterceptors,
+    UploadedFile,
+    Query,
+    Res
+} from '@nestjs/common';
 import {UsersService} from './users.service';
 import {CreateUserDto} from './dto/create-user.dto';
 import {FileInterceptor} from "@nestjs/platform-express";
+import {AuthService} from "../auth/auth.service";
 
 @Controller('users')
 export class UsersController {
-    constructor(private readonly usersService: UsersService) {
+    constructor(private readonly usersService: UsersService, private readonly authService: AuthService) {
     }
 
     @Post()
     @UseInterceptors(FileInterceptor('photo'))
-    async create(@Body() createUserDto: CreateUserDto, @UploadedFile() file: Express.Multer.File) {
+    async create(
+        @Headers('Token') token: string,
+        @Body() createUserDto: CreateUserDto,
+        @UploadedFile() file: Express.Multer.File,
+        @Res() response) {
+
+        const tokenValidationError = await this.authService.checkToken(token);
+        if (tokenValidationError) {
+            return response.status(401).json({
+                "success": false,
+                "message": tokenValidationError
+            })
+        }
 
         const user = await this.usersService.create(createUserDto);
         await this.usersService.processImage(user.id, file);

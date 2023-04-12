@@ -8,9 +8,11 @@ export class Token {
     @Column()
     token: string;
 
+    @Column({default: true})
+    isActive: boolean;
+
     @CreateDateColumn({
         type: 'timestamp',
-        default: () => 'CURRENT_TIMESTAMP(6)',
     })
     public created_at: Date;
 }

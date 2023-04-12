@@ -6,10 +6,12 @@ import {User} from "./entities/user.entity";
 import {Position} from "./entities/position.entity";
 import {PositionsController} from "./positions.controller";
 import {PositionsService} from "./positions.service";
+import {Token} from "../auth/entities/token.entity";
+import {AuthService} from "../auth/auth.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Position])],
+  imports: [TypeOrmModule.forFeature([User, Position, Token])],
   controllers: [UsersController, PositionsController],
-  providers: [UsersService, PositionsService]
+  providers: [UsersService, PositionsService, AuthService]
 })
 export class UsersModule {}

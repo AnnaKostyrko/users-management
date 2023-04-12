@@ -7,6 +7,7 @@ import {Token} from "./entities/token.entity";
 @Module({
   imports: [TypeOrmModule.forFeature([Token])],
   controllers: [AuthController],
-  providers: [AuthService]
+  providers: [AuthService],
+  exports: [AuthService],
 })
 export class AuthModule {}

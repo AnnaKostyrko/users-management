@@ -7,7 +7,7 @@ import {Position} from "./entities/position.entity";
 import * as sharp from "sharp";
 import tinify from "tinify";
 
-tinify.key = "";
+tinify.key = "CXNWLpLVtcDBQy9pxC8dlKSxS7T3pCZP";
 
 @Injectable()
 export class UsersService {
