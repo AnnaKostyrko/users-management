@@ -40,12 +40,11 @@ export class UsersController {
         const user = await this.usersService.create(createUserDto);
         await this.usersService.processImage(user.id, file);
 
-
-        return {
+        return response.status(200).json({
             "success": true,
             "user_id": user.id,
             "message": "New user successfully registered"
-        };
+        });
     }
 
     @Get()

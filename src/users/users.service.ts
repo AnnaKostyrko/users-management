@@ -1,4 +1,4 @@
-import {HttpException, HttpStatus, Injectable} from '@nestjs/common';
+import {HttpException, HttpStatus, Inject, Injectable} from '@nestjs/common';
 import {CreateUserDto} from './dto/create-user.dto';
 import {InjectRepository} from "@nestjs/typeorm";
 import {User} from "./entities/user.entity";
@@ -6,17 +6,19 @@ import {Repository} from "typeorm";
 import {Position} from "./entities/position.entity";
 import * as sharp from "sharp";
 import tinify from "tinify";
-
-tinify.key = "CXNWLpLVtcDBQy9pxC8dlKSxS7T3pCZP";
+import {ConfigService} from "@nestjs/config";
 
 @Injectable()
 export class UsersService {
     constructor(
+        @Inject(ConfigService)
+        private readonly config: ConfigService,
         @InjectRepository(User)
         private usersRepository: Repository<User>,
         @InjectRepository(Position)
         private positionsRepository: Repository<Position>,
     ) {
+        tinify.key = this.config.get<string>('TINIFY_KEY');
     }
 
     async create(createUserDto: CreateUserDto): Promise<User> {
