@@ -5,7 +5,6 @@ import {
     Body,
     Headers,
     Param,
-    Req,
     UseInterceptors,
     UploadedFile,
     Query,
@@ -15,6 +14,8 @@ import {UsersService} from './users.service';
 import {CreateUserDto} from './dto/create-user.dto';
 import {FileInterceptor} from "@nestjs/platform-express";
 import {AuthService} from "../auth/auth.service";
+import {validate} from "class-validator";
+
 
 @Controller('users')
 export class UsersController {
@@ -34,6 +35,30 @@ export class UsersController {
             return response.status(401).json({
                 "success": false,
                 "message": tokenValidationError
+            })
+        }
+
+        const errors = await validate(Object.assign(new CreateUserDto(), createUserDto));
+        if (errors.length){
+            const fails = {};
+            for (let error of errors) {
+                fails[error.property] = [];
+                for (let constraint in error.constraints) {
+                    fails[error.property].push('The ' + error.constraints[constraint] + '.')
+                }
+            }
+            return response.status(422).json({
+                "success": false,
+                "message": "Validation failed",
+                fails
+            })
+        }
+
+        const existingUsers = await this.usersService.findBy(createUserDto.phone, createUserDto.email);
+        if (existingUsers.length) {
+            return response.status(409).json({
+                "success": false,
+                "message": "User with this phone or email already exist"
             })
         }
 

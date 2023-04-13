@@ -91,6 +91,15 @@ export class UsersService {
         });
     }
 
+    async findBy(phone: string, email: string) {
+        return this.usersRepository.findBy(
+            [
+                { phone },
+                { email }
+            ]
+        )
+    }
+
     async processImage(userId: number, file: Express.Multer.File) {
         const imagePath = `./uploads/${userId}.jpg`;
 

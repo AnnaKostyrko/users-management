@@ -1,5 +1,6 @@
 import { Controller, Get } from "@nestjs/common";
 import { PositionsService } from "./positions.service";
+import {response} from "express";
 
 @Controller('positions')
 export class PositionsController {
@@ -9,10 +10,10 @@ export class PositionsController {
     async findAll() {
         const position = await this.positionsService.findAll()
         if (position.length === 0) {
-            return {
+            return response.status(422).json({
                 "success": false,
                 "message": "Positions not found"
-            }
+            })
         }
         return {
             "success": true,
