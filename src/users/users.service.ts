@@ -21,7 +21,7 @@ export class UsersService {
         tinify.key = this.config.get<string>('TINIFY_KEY');
     }
 
-    async create(createUserDto: CreateUserDto): Promise<User> {
+    async create(createUserDto: CreateUserDto, imageName: string): Promise<User> {
 
         const position = await this.positionsRepository.findOneBy({
             id: +createUserDto.position_id,
@@ -34,7 +34,8 @@ export class UsersService {
             name: createUserDto.name,
             email: createUserDto.email,
             phone: createUserDto.phone,
-            position
+            position,
+            photo: imageName
         });
     }
 
@@ -63,7 +64,7 @@ export class UsersService {
                 position_id: user.position.id.toString(),
                 position: user.position.name,
                 registration_timestamp: user.registration_timestamp.getTime(),
-                photo: '/uploads/' + user.id + '.jpg'
+                photo: '/uploads/' + user.photo
             };
 
             return responseItem;
@@ -100,10 +101,16 @@ export class UsersService {
         )
     }
 
-    async processImage(userId: number, file: Express.Multer.File) {
-        const imagePath = `./uploads/${userId}.jpg`;
+    async getImageMetadata(file: Express.Multer.File) {
+        return sharp(file.buffer).metadata()
+    }
+
+    async processImage(imageName: string, file: Express.Multer.File) {
+        const imagePath = './uploads/' + imageName;
+
 
         const metadata = await sharp(file.buffer).metadata()
+
         const imageBuffer = await sharp(file.buffer)
             .extract({
                 width: 70,

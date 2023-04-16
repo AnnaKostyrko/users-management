@@ -8,14 +8,15 @@ import {
     UseInterceptors,
     UploadedFile,
     Query,
-    Res
+    Res, ValidationPipe, BadRequestException, HttpStatus
 } from '@nestjs/common';
 import {UsersService} from './users.service';
 import {CreateUserDto} from './dto/create-user.dto';
 import {FileInterceptor} from "@nestjs/platform-express";
 import {AuthService} from "../auth/auth.service";
-import {validate} from "class-validator";
-
+import {validateObject} from "./validation.helper";
+import * as crypto from "crypto";
+import {GetUserByIdDto} from "./dto/get-user-by-id.dto";
 
 @Controller('users')
 export class UsersController {
@@ -38,15 +39,31 @@ export class UsersController {
             })
         }
 
-        const errors = await validate(Object.assign(new CreateUserDto(), createUserDto));
-        if (errors.length){
-            const fails = {};
-            for (let error of errors) {
-                fails[error.property] = [];
-                for (let constraint in error.constraints) {
-                    fails[error.property].push('The ' + error.constraints[constraint] + '.')
+        let fileErrors = [];
+        if (!file) {
+            fileErrors.push("The photo field is required.")
+        } else {
+            if (file.size > 5242880) {
+                fileErrors.push("The photo may not be greater than 5 Mbytes.")
+            }
+
+            if (file.mimetype !== 'image/jpeg' && file.mimetype !== 'image/jpg') {
+                fileErrors.push("Image is invalid.")
+            } else {
+                const metadata = await this.usersService.getImageMetadata(file);
+                if (metadata.width < 70 || metadata.height < 70) {
+                    fileErrors.push("The photo resolution may be at least 70x70px.")
                 }
             }
+        }
+
+        const createUserDtoFails = await validateObject(Object.assign(new CreateUserDto(), createUserDto))
+        if (createUserDtoFails || fileErrors.length) {
+            let fails = createUserDtoFails || {};
+            if (fileErrors.length) {
+                fails['photo'] = fileErrors;
+            }
+
             return response.status(422).json({
                 "success": false,
                 "message": "Validation failed",
@@ -62,8 +79,9 @@ export class UsersController {
             })
         }
 
-        const user = await this.usersService.create(createUserDto);
-        await this.usersService.processImage(user.id, file);
+        const imageName = crypto.randomBytes(10).toString('hex') + (file.mimetype === 'image/jpeg' ? '.jpeg' : '.jpg');
+        await this.usersService.processImage(imageName, file);
+        const user = await this.usersService.create(createUserDto, imageName);
 
         return response.status(200).json({
             "success": true,
@@ -73,18 +91,45 @@ export class UsersController {
     }
 
     @Get()
-    findAll(
+    async findAll(
         @Query('page') page: number,
         @Query('count') count: number,
         @Query('offset') offset: number,
+        @Res() response
     ) {
-        return this.usersService.findAll(page, count, offset);
+        const userList = await this.usersService.findAll(+page, +count, +offset);
+        return response.json(userList)
     }
 
     @Get(':id')
-    async findOne(@Param('id') id: string) {
+    async findOne(@Param('id') id: string, @Res() response) {
+
+        const getUserByIdDto = new GetUserByIdDto(+id);
+        const getUserByIdDtoFails = await validateObject(getUserByIdDto)
+
+        if (getUserByIdDtoFails) {
+            return response.status(400).json({
+                "success": false,
+                "message": "Validation failed",
+                "user_id": getUserByIdDtoFails
+            })
+        }
+
         const user = await this.usersService.findOne(+id);
-        return {
+
+        if (!user) {
+            return response.status(404).json({
+                "success": false,
+                "message": "The user with the requested identifier does not exist",
+                "fails": {
+                    "user_id" : [
+                        "User not found"
+                    ]
+                }
+            });
+        }
+
+        return response.json ({
             success: true,
             user: {
                 id: user.id,
@@ -93,7 +138,8 @@ export class UsersController {
                 phone: user.phone,
                 position_id: user.position.id,
                 position: user.position.name,
+                photo: '/uploads/' + user.photo
             }
-        };
+        });
     }
 }

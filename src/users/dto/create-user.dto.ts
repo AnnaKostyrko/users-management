@@ -2,8 +2,7 @@ import {
     IsEmail,
     IsNotEmpty, IsNumberString,
     IsString,
-    Length,
-    Matches, Max, MaxLength, Min, MinLength
+    Matches, MaxLength, MinLength
 } from "class-validator";
 
 export class CreateUserDto {
