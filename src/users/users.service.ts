@@ -53,8 +53,6 @@ export class UsersService {
             take: count
         });
 
-        const totalUserCount = await this.usersRepository.count();
-
         const formattedUsersItems = users.map((user: User) => {
             const responseItem = {
                 id: user.id.toString(),
@@ -70,15 +68,30 @@ export class UsersService {
             return responseItem;
         });
 
+        const totalUserCount = await this.usersRepository.count();
+        const totalPages = Math.ceil(totalUserCount / count);
+
+        let nextUrl = null
+        let prevUrl = null
+
+        if (users.length && !offset) {
+            if (page > 1) {
+                prevUrl = `http://localhost:3000/users?page=${page - 1}&count=${count}`
+            }
+            if (page !== totalPages) {
+                nextUrl = `http://localhost:3000/users?page=${page + 1}&count=${count}`
+            }
+        }
+
         return {
             "success": true,
-            "page": offset ? 1 : page,
-            "total_pages": Math.floor(totalUserCount / count),
+            "page": offset ? null : page,
+            "total_pages": totalPages,
             "total_users": totalUserCount,
             "count": formattedUsersItems.length,
             "links": {
-                "next_url": `http://localhost:3000/users?page=${page + 1}&count=${count}`,
-                "prev_url": null
+                "next_url": nextUrl,
+                "prev_url": prevUrl
             },
             users: formattedUsersItems,
         };
