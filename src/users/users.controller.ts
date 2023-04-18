@@ -8,20 +8,24 @@ import {
     UseInterceptors,
     UploadedFile,
     Query,
-    Res, ValidationPipe, BadRequestException, HttpStatus
+    Res, ValidationPipe, ParseIntPipe, ValidationError
 } from '@nestjs/common';
 import {UsersService} from './users.service';
 import {CreateUserDto} from './dto/create-user.dto';
 import {FileInterceptor} from "@nestjs/platform-express";
 import {AuthService} from "../auth/auth.service";
-import {validateObject} from "./validation.helper";
 import * as crypto from "crypto";
-import {GetUserByIdDto} from "./dto/get-user-by-id.dto";
+import {UnsuccessfulApiCallException} from "../exceptions/validation-exception";
+import {GetUserListParamsDto} from "./dto/get-user-list-params.dto";
+import {CreateUserFromValidator} from "./validators/create-user-from-validator";
+import {formatFails} from "./validators/format-fails.helper";
 
 @Controller('users')
 export class UsersController {
-    constructor(private readonly usersService: UsersService, private readonly authService: AuthService) {
-    }
+    constructor(private readonly usersService: UsersService,
+                private readonly authService: AuthService,
+                private readonly createUserFromValidator: CreateUserFromValidator
+    ) {}
 
     @Post()
     @UseInterceptors(FileInterceptor('photo'))
@@ -31,59 +35,19 @@ export class UsersController {
         @UploadedFile() file: Express.Multer.File,
         @Res() response) {
 
-        const tokenValidationError = await this.authService.checkToken(token);
-        if (tokenValidationError) {
-            return response.status(401).json({
-                "success": false,
-                "message": tokenValidationError
-            })
-        }
-
-        let fileErrors = [];
-        if (!file) {
-            fileErrors.push("The photo field is required.")
-        } else {
-            if (file.size > 5242880) {
-                fileErrors.push("The photo may not be greater than 5 Mbytes.")
-            }
-
-            if (file.mimetype !== 'image/jpeg' && file.mimetype !== 'image/jpg') {
-                fileErrors.push("Image is invalid.")
-            } else {
-                const metadata = await this.usersService.getImageMetadata(file);
-                if (metadata.width < 70 || metadata.height < 70) {
-                    fileErrors.push("The photo resolution may be at least 70x70px.")
-                }
-            }
-        }
-
-        const createUserDtoFails = await validateObject(Object.assign(new CreateUserDto(), createUserDto))
-        if (createUserDtoFails || fileErrors.length) {
-            let fails = createUserDtoFails || {};
-            if (fileErrors.length) {
-                fails['photo'] = fileErrors;
-            }
-
-            return response.status(422).json({
-                "success": false,
-                "message": "Validation failed",
-                fails
-            })
-        }
+       // await this.authService.checkAndInvalidateToken(token);
+        await this.createUserFromValidator.validate(createUserDto, file);
 
         const existingUsers = await this.usersService.findBy(createUserDto.phone, createUserDto.email);
         if (existingUsers.length) {
-            return response.status(409).json({
-                "success": false,
-                "message": "User with this phone or email already exist"
-            })
+            throw new UnsuccessfulApiCallException(null, "User with this phone or email already exist", 409);
         }
 
         const imageName = crypto.randomBytes(10).toString('hex') + (file.mimetype === 'image/jpeg' ? '.jpeg' : '.jpg');
         await this.usersService.processImage(imageName, file);
         const user = await this.usersService.create(createUserDto, imageName);
 
-        return response.status(200).json({
+        return response.json({
             "success": true,
             "user_id": user.id,
             "message": "New user successfully registered"
@@ -92,44 +56,33 @@ export class UsersController {
 
     @Get()
     async findAll(
-        @Query('page') page: number,
-        @Query('count') count: number,
-        @Query('offset') offset: number,
-        @Res() response
+        @Query(new ValidationPipe({
+            transform: true,
+            exceptionFactory: (validationErrors: ValidationError[] = []) => {
+                return new UnsuccessfulApiCallException(formatFails(validationErrors), "Validation failed", 422)
+            },
+        })) queryParams: GetUserListParamsDto,
     ) {
-        const userList = await this.usersService.findAll(+page, +count, +offset);
-        return response.json(userList)
+        return this.usersService.findAll(queryParams.page, queryParams.count, queryParams.offset);
     }
 
     @Get(':id')
-    async findOne(@Param('id') id: string, @Res() response) {
-
-        const getUserByIdDto = new GetUserByIdDto(+id);
-        const getUserByIdDtoFails = await validateObject(getUserByIdDto)
-
-        if (getUserByIdDtoFails) {
-            return response.status(400).json({
-                "success": false,
-                "message": "Validation failed",
-                "user_id": getUserByIdDtoFails
-            })
+    async findOne(@Param('id', new ParseIntPipe({
+        exceptionFactory: (errors) => {
+            return new UnsuccessfulApiCallException({
+                user_id: ["The user_id must be an integer."]
+            }, "Validation failed", 400);
         }
+    })) id: number) {
 
-        const user = await this.usersService.findOne(+id);
-
+        const user = await this.usersService.findOne(id);
         if (!user) {
-            return response.status(404).json({
-                "success": false,
-                "message": "The user with the requested identifier does not exist",
-                "fails": {
-                    "user_id" : [
-                        "User not found"
-                    ]
-                }
-            });
+            throw new UnsuccessfulApiCallException({
+                user_id: ["User not found"]
+            }, "The user with the requested identifier does not exist", 404);
         }
 
-        return response.json ({
+        return {
             success: true,
             user: {
                 id: user.id,
@@ -140,6 +93,6 @@ export class UsersController {
                 position: user.position.name,
                 photo: '/uploads/' + user.photo
             }
-        });
+        };
     }
 }

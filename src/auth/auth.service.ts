@@ -3,6 +3,7 @@ import {Token} from "./entities/token.entity";
 import {InjectRepository} from "@nestjs/typeorm";
 import {Repository} from "typeorm";
 import * as crypto from "crypto";
+import {UnsuccessfulApiCallException} from "../exceptions/validation-exception";
 
 @Injectable()
 export class AuthService {
@@ -19,31 +20,26 @@ export class AuthService {
     return token;
   }
 
-  async checkToken(token: string): Promise<string> {
-
+  async checkAndInvalidateToken(token: string): Promise<void> {
       if (!token){
-          return "Not authorized.";
+          this.throwAuthError("Not authorized.");
       }
 
-     const tokenEntity = await this.tokenRepository.findOneBy({token});
+      const tokenEntity = await this.tokenRepository.findOneBy({token});
+      if (!tokenEntity){
+          this.throwAuthError("Not authorized.");
+      }
 
-     if (!tokenEntity){
-       return "Not authorized.";
-     }
-
-     if (tokenEntity.created_at < new Date(Date.now() - 40 * 60 * 1000)) {
-         return "The token expired.";
-     }
-
-
-     if (!tokenEntity.isActive) {
-         return "The token expired.";
-     }
+      if (tokenEntity.created_at < new Date(Date.now() - 40 * 60 * 1000) || !tokenEntity.isActive) {
+          this.throwAuthError("The token expired.");
+      }
 
       tokenEntity.isActive = false;
       await this.tokenRepository.save(tokenEntity);
-
-      return '';
   }
+
+    private throwAuthError(error: string) {
+        throw new UnsuccessfulApiCallException(null, error, 401);
+    }
 }
 

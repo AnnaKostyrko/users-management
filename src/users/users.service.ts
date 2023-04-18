@@ -7,6 +7,7 @@ import {Position} from "./entities/position.entity";
 import * as sharp from "sharp";
 import tinify from "tinify";
 import {ConfigService} from "@nestjs/config";
+import {UnsuccessfulApiCallException} from "../exceptions/validation-exception";
 
 @Injectable()
 export class UsersService {
@@ -22,12 +23,14 @@ export class UsersService {
     }
 
     async create(createUserDto: CreateUserDto, imageName: string): Promise<User> {
-
         const position = await this.positionsRepository.findOneBy({
             id: +createUserDto.position_id,
         });
         if (!position) {
-            throw new HttpException('Position not found', HttpStatus.BAD_REQUEST);
+            throw new UnsuccessfulApiCallException(
+                null,
+                `Position with id [${createUserDto.position_id}] does not exist`,
+                409);
         }
 
         return this.usersRepository.save({

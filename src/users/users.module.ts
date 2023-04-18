@@ -8,10 +8,11 @@ import {PositionsController} from "./positions.controller";
 import {PositionsService} from "./positions.service";
 import {Token} from "../auth/entities/token.entity";
 import {AuthService} from "../auth/auth.service";
+import {CreateUserFromValidator} from "./validators/create-user-from-validator";
 
 @Module({
   imports: [TypeOrmModule.forFeature([User, Position, Token])],
   controllers: [UsersController, PositionsController],
-  providers: [UsersService, PositionsService, AuthService]
+  providers: [UsersService, PositionsService, AuthService, CreateUserFromValidator]
 })
 export class UsersModule {}

@@ -1,6 +1,6 @@
-import { Controller, Get } from "@nestjs/common";
+import {Controller, Get } from "@nestjs/common";
 import { PositionsService } from "./positions.service";
-import {response} from "express";
+import {UnsuccessfulApiCallException} from "../exceptions/validation-exception";
 
 @Controller('positions')
 export class PositionsController {
@@ -9,11 +9,8 @@ export class PositionsController {
     @Get()
     async findAll() {
         const position = await this.positionsService.findAll()
-        if (position.length === 0) {
-            return response.status(422).json({
-                "success": false,
-                "message": "Positions not found"
-            })
+        if (!position.length) {
+            throw new UnsuccessfulApiCallException(null, "Positions not found");
         }
         return {
             "success": true,
