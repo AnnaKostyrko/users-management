@@ -35,7 +35,7 @@ export class UsersController {
         @UploadedFile() file: Express.Multer.File,
         @Res() response) {
 
-       // await this.authService.checkAndInvalidateToken(token);
+        await this.authService.checkAndInvalidateToken(token);
         await this.createUserFromValidator.validate(createUserDto, file);
 
         const existingUsers = await this.usersService.findBy(createUserDto.phone, createUserDto.email);
@@ -59,7 +59,8 @@ export class UsersController {
         @Query(new ValidationPipe({
             transform: true,
             exceptionFactory: (validationErrors: ValidationError[] = []) => {
-                return new UnsuccessfulApiCallException(formatFails(validationErrors), "Validation failed", 422)
+                return new UnsuccessfulApiCallException(formatFails(validationErrors),
+                    "Validation failed", 422)
             },
         })) queryParams: GetUserListParamsDto,
     ) {
@@ -74,7 +75,6 @@ export class UsersController {
             }, "Validation failed", 400);
         }
     })) id: number) {
-
         const user = await this.usersService.findOne(id);
         if (!user) {
             throw new UnsuccessfulApiCallException({
@@ -91,7 +91,7 @@ export class UsersController {
                 phone: user.phone,
                 position_id: user.position.id,
                 position: user.position.name,
-                photo: '/uploads/' + user.photo
+                photo: '/images/users/' + user.photo
             }
         };
     }
