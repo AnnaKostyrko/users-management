@@ -26,7 +26,7 @@ What was done:
 * Implemented a data generator and seeders
 * Added generation token with unvalidation after single request (for practiсe)
 * Added endpoint for avatar output based on Node.js streams
-* created documentation with Swagger
+* Created documentation with Swagger
 
 ## Installation
 
